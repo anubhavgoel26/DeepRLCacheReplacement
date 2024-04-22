@@ -11,7 +11,7 @@ if __name__ == "__main__":
     # cache
     dataloader = DataLoaderPintos(["data/zipf.csv"])
     env = Cache(dataloader, 50
-        , feature_selection=('Base',)
+        , feature_selection=('Base', 'UT', 'CT')
         , reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3)
         , allow_skip=False
     )
@@ -53,10 +53,10 @@ if __name__ == "__main__":
     #     reward_decay=0.99,
     #     batch_size=128
     # )
-    # agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
-    #     actor_learning_rate=0.0001,
-    #     critic_learning_rate=0.0001,
-    # )
+    agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
+        actor_learning_rate=0.0001,
+        critic_learning_rate=0.0001,
+    )
     agents['Random'] = RandomAgent(env.n_actions)
     agents['LRU'] = LRUAgent(env.n_actions)
     agents['LFU'] = LFUAgent(env.n_actions)
