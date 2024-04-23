@@ -8,7 +8,6 @@ from agents.ReflexAgent import *
 from cache.DataLoader import DataLoaderPintos
 
 if __name__ == "__main__":
-    # cache
     dataloader = DataLoaderPintos(["data/zipf.csv"])
     env = Cache(dataloader, 50
         , feature_selection=('Base', 'UT', 'CT')
@@ -16,31 +15,29 @@ if __name__ == "__main__":
         , allow_skip=False
     )
 
-    # agents
     agents = {}
-    # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
-    #     learning_rate=0.01,
-    #     reward_decay=0.9,
+    agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
+        learning_rate=0.01,
+        reward_decay=0.9,
         
-    #     # Epsilon greedy
-    #     e_greedy_min=(0.0, 0.1),
-    #     e_greedy_max=(0.2, 0.8),
-    #     e_greedy_init=(0.1, 0.5),
-    #     e_greedy_increment=(0.005, 0.01),
-    #     e_greedy_decrement=(0.005, 0.001),
+        e_greedy_min=(0.0, 0.1),
+        e_greedy_max=(0.2, 0.8),
+        e_greedy_init=(0.1, 0.5),
+        e_greedy_increment=(0.005, 0.01),
+        e_greedy_decrement=(0.005, 0.001),
 
-    #     history_size=50,
-    #     dynamic_e_greedy_iter=25,
-    #     reward_threshold=3,
-    #     explore_mentor = 'LRU',
+        history_size=50,
+        dynamic_e_greedy_iter=25,
+        reward_threshold=3,
+        explore_mentor = 'LRU',
 
-    #     replace_target_iter=100,
-    #     memory_size=10000,
-    #     batch_size=128,
+        replace_target_iter=100,
+        memory_size=10000,
+        batch_size=128,
 
-    #     output_graph=False,
-    #     verbose=0
-    # )
+        output_graph=False,
+        verbose=0
+    )
     # agents['A2C'] = A2CAgent(env.n_actions, env.n_features,
     #     actor_learning_rate=0.0001,
     #     critic_learning_rate=0.001,
@@ -69,20 +66,16 @@ if __name__ == "__main__":
         step = 0
         episodes = 100 if isinstance(agent, LearnerAgent) else 1
         for episode in range(episodes):
-            # initial observation
             observation = env.reset()
 
             while True:
-                # agent choose action based on observation
                 if name=='PPO':
                     action, old_log_prob = agent.choose_action(observation)
                 else:
                     action = agent.choose_action(observation)
 
-                # agent take action and get next observation and reward
                 observation_, reward = env.step(action)
 
-                # break while loop when end of this episode
                 if env.hasDone():
                     break
 
@@ -94,7 +87,6 @@ if __name__ == "__main__":
                 if isinstance(agent, LearnerAgent) and (step > 20) and (step % 5 == 0):
                     agent.learn()
 
-                # swap observation
                 observation = observation_
 
                 if step % 100 == 0:
