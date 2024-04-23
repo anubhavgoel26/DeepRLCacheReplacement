@@ -1,3 +1,5 @@
+import argparse
+
 from cache.Cache import Cache
 from agents.CacheAgent import *
 from agents.DQNAgent import DQNAgent
@@ -7,12 +9,16 @@ from agents.PPOAgent import PPOAgent
 from agents.ReflexAgent import *
 from cache.DataLoader import DataLoaderPintos
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
+    parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 25, 50, 100, 300])
+    args = parser.parse_args()
+
     dataloader = DataLoaderPintos(["data/zipf.csv"])
-    env = Cache(dataloader, 50
-        , feature_selection=('Base', 'UT', 'CT')
-        , reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3)
-        , allow_skip=False
+    env = Cache(dataloader, args.cachesize, 
+        feature_selection=('Base', 'UT', 'CT'), 
+        reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3), 
+        allow_skip=False
     )
 
     agents = {}
@@ -60,11 +66,11 @@ if __name__ == "__main__":
     agents['MRU'] = MRUAgent(env.n_actions)
 
     for (name, agent) in agents.items():
-
         print("-------------------- %s --------------------" % name)
 
         step = 0
         episodes = 100 if isinstance(agent, LearnerAgent) else 1
+        
         for episode in range(episodes):
             observation = env.reset()
 
@@ -91,8 +97,11 @@ if __name__ == "__main__":
 
                 if step % 100 == 0:
                     mr = env.miss_rate()
-                    print("Agent=%s, Episode=%d, Step=%d: Accesses=%d, Misses=%d, MissRate=%f"
-                        % (name, episode, step, env.total_count, env.miss_count, mr)
-                    )
+                    print(f"### Agent={name}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
 
                 step += 1
+        mr = env.miss_rate()
+        print(f"=== Agent={name}, CacheSize={args.cachesize} Episode={episode}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+
+if __name__ == "__main__":
+    main()
