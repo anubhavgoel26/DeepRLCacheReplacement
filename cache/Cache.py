@@ -3,22 +3,19 @@ import numpy as np
 from cache.DataLoader import *
                     
 class Cache(object):
-    def __init__(self, requests, cache_size
-        # Time span for different terms
-        , terms=[10, 100, 1000]
-
-        # Features. Available 'Base', 'UT', and 'CT'
-        # Refer to the report for what they mean
-        , feature_selection=('Base',)
+    def __init__(self, requests, cache_size,
+        terms=[10, 100, 1000], # Time span for different terms
+        feature_selection=('Base',), # Features. Available 'Base', 'UT', and 'CT'
 
         # Reward functions. Here are the default params
         # 1. Zhong et. al. - (name='zhong', short_reward=1.0, long_span=100, beta=0.5)
         # 2. Ours - (name='our', alpha=0.5, psi=10, mu=1, beta=0.3), let psi=0 to remove penalty
-        , reward_params=dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3)
+        reward_params=dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3),
                  
         # leave none for random read/writes
-        , operations=None
-        , allow_skip=False
+        operations=None, 
+        allow_skip=False,
+        normalize=False # normalize all state features between 0 and 1
     ):
         # If the cache allows skip eviction
         # Network caching, disk caching do allow skipping eviction and grab resource directly.
@@ -29,6 +26,8 @@ class Cache(object):
         self.total_count = 0
         self.miss_count = 0
         self.evict_count = 0
+
+        self.normalize = normalize
 
         # Load requests
         if isinstance(requests, DataLoader):   # From data loader
@@ -237,7 +236,11 @@ class Cache(object):
         if start < 0: start = 0
         end = self.cur_index + 1
         if end > len(self.requests): end = len(self.requests)
-        return self.requests[start : end].count(rc_id)
+        # print(f"XYZ term={term} rcid={rc_id} {self.requests[start : end].count(rc_id)}")
+        if self.normalize:
+            return (1.00 * self.requests[start : end].count(rc_id))/term
+        else:
+            return (1.00 * self.requests[start : end].count(rc_id))
 
     # The number of requests on rc_id among next `term` requests.
     def _next_requests(self, term, rc_id):
@@ -261,16 +264,30 @@ class Cache(object):
         
         # last accessed time
         if 'UT' in self.sel_features:
-            features = np.concatenate([
-                features
-                , np.array([self.used_times[i] for i in range(self.cache_size)])
-            ], axis=0)
+            if self.normalize:
+                features = np.concatenate([
+                    features
+                    , np.array([self.used_times[i]/np.max(self.used_times) for i in range(self.cache_size)])
+                ], axis=0)
+            else:
+                features = np.concatenate([
+                    features
+                    , np.array([self.used_times[i] for i in range(self.cache_size)])
+                ], axis=0)
+
         # cached time
         if 'CT' in self.sel_features:
-            features = np.concatenate([
-                features
-                , np.array([self.cached_times[i] for i in range(self.cache_size)])
-            ], axis=0)
+            if normalize:
+                features = np.concatenate([
+                    features, 
+                    np.array([self.cached_times[i]/np.max(self.cached_times) for i in range(self.cache_size)])
+                ], axis=0)
+            else:
+                features = np.concatenate([
+                    features, 
+                    np.array([self.cached_times[i] for i in range(self.cache_size)])
+                ], axis=0)
+
         
         return features
 
