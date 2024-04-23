@@ -6,6 +6,7 @@ from agents.DQNAgent import DQNAgent
 from agents.ActorCriticAgent import ActorCriticAgent
 from agents.A2CAgent import A2CAgent
 from agents.PPOAgent import PPOAgent
+from agents.REINFORCEAgent import REINFORCEAgent
 from agents.ReflexAgent import *
 from cache.DataLoader import DataLoaderPintos
 
@@ -60,6 +61,7 @@ def main():
         actor_learning_rate=0.0001,
         critic_learning_rate=0.0001,
     )
+    agents['REINFORCE'] = REINFORCEAgent(env.n_actions, env.n_features)
     agents['Random'] = RandomAgent(env.n_actions)
     agents['LRU'] = LRUAgent(env.n_actions)
     agents['LFU'] = LFUAgent(env.n_actions)
