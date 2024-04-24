@@ -7,6 +7,7 @@ from agents.ActorCriticAgent import ActorCriticAgent
 from agents.A2CAgent import A2CAgent
 from agents.PPOAgent import PPOAgent
 from agents.REINFORCEAgent import REINFORCEAgent
+from agents.SarsaLambdaAgent import SarsaLambdaAgent
 from agents.ReflexAgent import *
 from cache.DataLoader import DataLoaderPintos
 
@@ -17,16 +18,16 @@ def main():
 
     dataloader = DataLoaderPintos(["data/zipf.csv"])
     env = Cache(dataloader, args.cachesize, 
-        feature_selection=('Base', 'UT', 'CT'), 
+        feature_selection=('Base'), #, 'UT', 'CT'), 
         reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3), 
         allow_skip=False
     )
 
     agents = {}
+    agents['SarsaLambda'] = SarsaLambdaAgent(env.n_actions, env.n_features)
     # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
     #     learning_rate=0.01,
-    #     reward_decay=0.9,
-        
+    #     reward_decay=0.9,        
     #     e_greedy_min=(0.0, 0.1),
     #     e_greedy_max=(0.2, 0.8),
     #     e_greedy_init=(0.1, 0.5),
@@ -97,7 +98,7 @@ def main():
 
                 observation = observation_
 
-                if step % 100 == 0:
+                if step % 5 == 0:
                     mr = env.miss_rate()
                     print(f"### Agent={name}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
 
