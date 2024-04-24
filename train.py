@@ -23,40 +23,40 @@ def main():
     )
 
     agents = {}
-    agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
-        learning_rate=0.01,
-        reward_decay=0.9,
+    # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
+    #     learning_rate=0.01,
+    #     reward_decay=0.9,
         
-        e_greedy_min=(0.0, 0.1),
-        e_greedy_max=(0.2, 0.8),
-        e_greedy_init=(0.1, 0.5),
-        e_greedy_increment=(0.005, 0.01),
-        e_greedy_decrement=(0.005, 0.001),
+    #     e_greedy_min=(0.0, 0.1),
+    #     e_greedy_max=(0.2, 0.8),
+    #     e_greedy_init=(0.1, 0.5),
+    #     e_greedy_increment=(0.005, 0.01),
+    #     e_greedy_decrement=(0.005, 0.001),
 
-        history_size=50,
-        dynamic_e_greedy_iter=25,
-        reward_threshold=3,
-        explore_mentor = 'LRU',
+    #     history_size=50,
+    #     dynamic_e_greedy_iter=25,
+    #     reward_threshold=3,
+    #     explore_mentor = 'LRU',
 
-        replace_target_iter=100,
-        memory_size=10000,
-        batch_size=128,
+    #     replace_target_iter=100,
+    #     memory_size=10000,
+    #     batch_size=128,
 
-        output_graph=False,
-        verbose=0
-    )
+    #     output_graph=False,
+    #     verbose=0
+    # )
     # agents['A2C'] = A2CAgent(env.n_actions, env.n_features,
     #     actor_learning_rate=0.0001,
     #     critic_learning_rate=0.001,
     #     reward_decay=0.9,
     #     batch_size=128
     # )
-    # agents['ActorCritic'] = ActorCriticAgent(env.n_actions, env.n_features,
-    #     actor_learning_rate=0.0001,
-    #     critic_learning_rate=0.001,
-    #     reward_decay=0.99,
-    #     batch_size=128
-    # )
+    agents['ActorCritic'] = ActorCriticAgent(env.n_actions, env.n_features,
+        actor_learning_rate=0.0001,
+        critic_learning_rate=0.001,
+        reward_decay=0.99,
+        batch_size=128
+    )
     agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
         actor_learning_rate=0.0001,
         critic_learning_rate=0.0001,

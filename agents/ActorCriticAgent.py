@@ -4,48 +4,116 @@ import torch.nn as nn
 import torch.optim as optim
 from agents.CacheAgent import LearnerAgent
 
-class Actor(nn.Module):
+class ShallowActor(nn.Module):
     def __init__(self, n_features, n_actions):
-        super(Actor, self).__init__()
-        self.fc1 = nn.Linear(n_features, 256)
-        self.bn1 = nn.BatchNorm1d(256)
-        self.dropout1 = nn.Dropout(p=0.5)
-        self.fc2 = nn.Linear(256, 128)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.fc3 = nn.Linear(128, n_actions)
+        super(ShallowActor, self).__init__()
+        self.fc1 = nn.Linear(n_features, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, n_actions)
         self.softmax = nn.Softmax(dim=1)
-    
+
     def forward(self, x):
-        x = torch.relu(self.bn1(self.fc1(x)))
-        x = self.dropout1(x)
-        x = torch.relu(self.bn2(self.fc2(x)))
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
         x = self.softmax(self.fc3(x))
         return x
 
-class Critic(nn.Module):
+class ShallowCritic(nn.Module):
     def __init__(self, n_features):
-        super(Critic, self).__init__()
-        self.fc1 = nn.Linear(n_features, 256)
-        self.bn1 = nn.BatchNorm1d(256)
-        self.dropout1 = nn.Dropout(p=0.5)
-        self.fc2 = nn.Linear(256, 128)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.fc3 = nn.Linear(128, 1)
-    
+        super(ShallowCritic, self).__init__()
+        self.fc1 = nn.Linear(n_features, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
+
     def forward(self, x):
-        x = torch.relu(self.bn1(self.fc1(x)))
-        x = self.dropout1(x)
-        x = torch.relu(self.bn2(self.fc2(x)))
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
+class DeepActor(nn.Module):
+    def __init__(self, n_features, n_actions):
+        super(DeepActor, self).__init__()
+        self.fc1 = nn.Linear(n_features, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, n_actions)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.softmax(self.fc3(x))
+        return x
+
+class DeepCritic(nn.Module):
+    def __init__(self, n_features):
+        super(DeepCritic, self).__init__()
+        self.fc1 = nn.Linear(n_features, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 1)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+def pad_features(x, num_heads):
+    n_features = x.size(-1)
+    padding_size = (num_heads - (n_features % num_heads)) % num_heads
+    if padding_size > 0:
+        padding = torch.zeros((x.size(0), padding_size), device=x.device)
+        x = torch.cat([x, padding], dim=-1)
+    return x
+
+class AttentionActor(nn.Module):
+    def __init__(self, n_features, n_actions, num_heads=4):
+        super(AttentionActor, self).__init__()
+        self.n_features = n_features
+        self.num_heads = num_heads
+        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
+        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, n_actions)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = pad_features(x, self.num_heads)
+        x, _ = self.attention(x, x, x)
+        x = self.fc1(x)
+        return self.softmax(x)
+
+class AttentionCritic(nn.Module):
+    def __init__(self, n_features, num_heads=4):
+        super(AttentionCritic, self).__init__()
+        self.n_features = n_features
+        self.num_heads = num_heads
+        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
+        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, 1)
+
+    def forward(self, x):
+        x = pad_features(x, self.num_heads)
+        x, _ = self.attention(x, x, x)
+        x = self.fc1(x)
+        return x
+
+
 def normalize_features(features):
     return (features - np.mean(features)) / (np.std(features) + 1e-8)
-
+    
 class ActorCriticAgent(LearnerAgent):
-    def __init__(self, n_actions, n_features, actor_learning_rate=0.001, critic_learning_rate=0.01, reward_decay=0.9, replace_target_iter=300, memory_size=500, batch_size=32, output_graph=False, verbose=0):
+    def __init__(self, n_actions, n_features, architecture='attention', actor_learning_rate=0.001, critic_learning_rate=0.01, reward_decay=0.9, replace_target_iter=300, memory_size=500, batch_size=32, output_graph=False, verbose=0):
         self.n_actions = n_actions
         self.n_features = n_features
+        if architecture == 'shallow':
+            self.actor = ShallowActor(n_features, n_actions)
+            self.critic = ShallowCritic(n_features)
+        elif architecture == 'deep':
+            self.actor = DeepActor(n_features, n_actions)
+            self.critic = DeepCritic(n_features)
+        elif architecture == 'attention':
+            self.actor = AttentionActor(n_features, n_actions)
+            self.critic = AttentionCritic(n_features)
+        else:
+            raise ValueError("Invalid architecture type")
         self.gamma = reward_decay
         self.actor_lr = actor_learning_rate
         self.critic_lr = critic_learning_rate
@@ -56,8 +124,6 @@ class ActorCriticAgent(LearnerAgent):
         self.learn_step_counter = 0
         self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
         self.memory_counter = 0
-        self.actor = Actor(n_features, n_actions)
-        self.critic = Critic(n_features)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.critic_lr)
         self.loss_func = nn.MSELoss()

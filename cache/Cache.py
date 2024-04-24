@@ -277,7 +277,7 @@ class Cache(object):
 
         # cached time
         if 'CT' in self.sel_features:
-            if normalize:
+            if self.normalize:
                 features = np.concatenate([
                     features, 
                     np.array([self.cached_times[i]/np.max(self.cached_times) for i in range(self.cache_size)])
