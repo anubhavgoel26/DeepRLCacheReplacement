@@ -95,7 +95,6 @@ class AttentionCritic(nn.Module):
         x = self.fc1(x)
         return x
 
-
 def normalize_features(features):
     return (features - np.mean(features)) / (np.std(features) + 1e-8)
     
