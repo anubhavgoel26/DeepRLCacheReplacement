@@ -1,4 +1,5 @@
 import argparse
+import time 
 
 from cache.Cache import Cache
 from agents.CacheAgent import *
@@ -14,7 +15,14 @@ from cache.DataLoader import DataLoaderPintos
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
     parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 25, 50, 100, 300])
+
+    # arguments for SARSA LAMBDA
+    parser.add_argument('--num_tilings', default=10, type=int)
+    parser.add_argument('--lam', default=0.8, type=float)
+    parser.add_argument('--tile_width', default=1.0, type=float)
     args = parser.parse_args()
+
+    print(args)
 
     dataloader = DataLoaderPintos(["data/zipf.csv"])
     env = Cache(dataloader, args.cachesize, 
@@ -24,7 +32,12 @@ def main():
     )
 
     agents = {}
-    agents['SarsaLambda'] = SarsaLambdaAgent(env.n_actions, env.n_features)
+    agents['SarsaLambda'] = SarsaLambdaAgent(
+        env.n_actions, env.n_features,
+        num_tilings = args.num_tilings,
+        tile_width = args.tile_width,
+        lam = args.lam
+    )
     # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
     #     learning_rate=0.01,
     #     reward_decay=0.9,        
@@ -74,6 +87,9 @@ def main():
         step = 0
         episodes = 100 if isinstance(agent, LearnerAgent) else 1
         
+        start_time_step = time.time()
+        start_time_episode = time.time()
+
         for episode in range(episodes):
             observation = env.reset()
 
@@ -100,11 +116,13 @@ def main():
 
                 if step % 5 == 0:
                     mr = env.miss_rate()
-                    print(f"### Agent={name}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+                    print(f"### Time={time.time() - start_time_step} Agent={name}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+                    start_time_step = time.time()
 
                 step += 1
         mr = env.miss_rate()
-        print(f"=== Agent={name}, CacheSize={args.cachesize} Episode={episode}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+        print(f"=== Time={time.time() - start_time_episode} Agent={name}, CacheSize={args.cachesize} Episode={episode}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+        start_time_episode = time.time()
 
 if __name__ == "__main__":
     main()
