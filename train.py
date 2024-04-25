@@ -6,7 +6,6 @@ from agents.CacheAgent import *
 from agents.DQNAgent import DQNAgent
 from agents.ActorCriticAgent import ActorCriticAgent
 from agents.ActorCriticQAgent import ActorCriticQAgent
-from agents.A2CAgent import A2CAgent
 from agents.PPOAgent import PPOAgent
 from agents.REINFORCEAgent import REINFORCEAgent
 from agents.SarsaLambdaAgent import SarsaLambdaAgent
@@ -59,12 +58,6 @@ def main():
 
     #     output_graph=False,
     #     verbose=0
-    # )
-    # agents['A2C'] = A2CAgent(env.n_actions, env.n_features,
-    #     actor_learning_rate=0.0001,
-    #     critic_learning_rate=0.001,
-    #     reward_decay=0.9,
-    #     batch_size=128
     # )
     agents['ActorCriticQ'] = ActorCriticQAgent(env.n_actions, env.n_features,
         actor_learning_rate=0.0001,
