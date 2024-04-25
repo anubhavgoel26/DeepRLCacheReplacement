@@ -4,6 +4,7 @@ from cache.Cache import Cache
 from agents.CacheAgent import *
 from agents.DQNAgent import DQNAgent
 from agents.ActorCriticAgent import ActorCriticAgent
+from agents.ActorCriticQAgent import ActorCriticQAgent
 from agents.A2CAgent import A2CAgent
 from agents.PPOAgent import PPOAgent
 from agents.REINFORCEAgent import REINFORCEAgent
@@ -51,7 +52,7 @@ def main():
     #     reward_decay=0.9,
     #     batch_size=128
     # )
-    agents['ActorCritic'] = ActorCriticAgent(env.n_actions, env.n_features,
+    agents['ActorCriticQ'] = ActorCriticQAgent(env.n_actions, env.n_features,
         actor_learning_rate=0.0001,
         critic_learning_rate=0.001,
         reward_decay=0.99,
