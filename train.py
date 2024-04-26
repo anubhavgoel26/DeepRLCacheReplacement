@@ -15,6 +15,7 @@ from cache.DataLoader import DataLoaderPintos
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
     parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 25, 50, 100, 300])
+    parser.add_argument('-d', '--data', default="zipf.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
 
     # arguments for SARSA LAMBDA
     parser.add_argument('--num_tilings', default=10, type=int)
@@ -24,9 +25,9 @@ def main():
 
     print(args)
 
-    dataloader = DataLoaderPintos(["data/zipf.csv"])
+    dataloader = DataLoaderPintos([f"data/{args.data}"])
     env = Cache(dataloader, args.cachesize, 
-        feature_selection=('Base'), #, 'UT', 'CT'), 
+        feature_selection=('Base', 'UT', 'CT'), 
         reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3), 
         allow_skip=False
     )
