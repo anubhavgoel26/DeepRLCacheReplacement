@@ -73,8 +73,9 @@ class AttentionActor(nn.Module):
         super(AttentionActor, self).__init__()
         self.n_features = n_features
         self.num_heads = num_heads
-        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
-        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, n_actions)
+        padded_features = n_features + (num_heads - (n_features % num_heads)) % num_heads
+        self.attention = nn.MultiheadAttention(padded_features, num_heads, batch_first=True)
+        self.fc1 = nn.Linear(padded_features, n_actions)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -86,7 +87,8 @@ class AttentionActor(nn.Module):
 class AttentionCritic(nn.Module):
     def __init__(self, n_features, n_actions, num_heads=4):
         super(AttentionCritic, self).__init__()
-        padded_features = n_features + n_actions + (num_heads - (n_features % num_heads)) % num_heads
+        self.num_heads = num_heads
+        padded_features = n_features + n_actions + (num_heads - ((n_features + n_actions) % num_heads)) % num_heads
         self.attention = nn.MultiheadAttention(padded_features, num_heads, batch_first=True)
         self.fc1 = nn.Linear(padded_features, 1)
 
@@ -122,7 +124,7 @@ class ActorCriticQAgent(LearnerAgent):
         self.batch_size = batch_size
         self.verbose = verbose
         self.learn_step_counter = 0
-        self.memory = np.zeros((self.memory_size, n_features * 2 + 2))  # This is not transferred to CUDA as it's maintained on CPU
+        self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
         self.memory_counter = 0
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.critic_lr)
