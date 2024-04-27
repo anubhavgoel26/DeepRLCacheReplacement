@@ -6,7 +6,7 @@ echo "Found $NUM_DEVICES GPUs on this node."
 
 count=0;
 
-for nn_type in shallow deep; do
+for nn_type in shallow deep attention; do
     for lr in 0.00001 0.00005 0.0001 0.0005; do
         if [ "$count" == "$NUM_DEVICES" ]; then
             wait

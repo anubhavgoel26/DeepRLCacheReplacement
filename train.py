@@ -26,7 +26,12 @@ def main():
     parser.add_argument('--num_tilings', default=10, type=int)
     parser.add_argument('--lam', default=0.8, type=float)
     parser.add_argument('--tile_width', default=1.0, type=float)
+    
+    # args for PPO
+    parser.add_argument('--ppo_epochs', default=10, type=int)
+
     args = parser.parse_args()
+    
 
     print(args)
 
@@ -62,6 +67,12 @@ def main():
             batch_size=128,
             architecture=args.network
         )
+    elif args.agent == 'PPO':
+        agent = PPOAgent(env.n_actions, env.n_features,
+            actor_learning_rate=args.lr,
+            critic_learning_rate=args.lr,
+            ppo_epochs=args.ppo_epochs
+        )
     
     
     # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
@@ -85,10 +96,7 @@ def main():
     #     output_graph=False,
     #     verbose=0
     # )
-    # agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
-    #     actor_learning_rate=0.0001,
-    #     critic_learning_rate=0.0001,
-    # )
+    
     # 
     # agents['Random'] = RandomAgent(env.n_actions)
     # agents['LRU'] = LRUAgent(env.n_actions)
