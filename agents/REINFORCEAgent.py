@@ -12,6 +12,42 @@ import numpy as np
 import torch
 import numpy as np
 
+def pad_features(x, num_heads):
+    n_features = x.size(-1)
+    padding_size = (num_heads - (n_features % num_heads)) % num_heads
+    if padding_size > 0:
+        padding = torch.zeros(padding_size, device=x.device)
+        x = torch.cat([x, padding], dim=-1)
+    return x.reshape(1, x.shape[0])
+
+class AttentionActor(nn.Module):
+    def __init__(self, n_features, n_actions, num_heads=4):
+        super(AttentionActor, self).__init__()
+        self.n_features = n_features
+        self.num_heads = num_heads
+        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
+        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, n_actions)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = pad_features(x, self.num_heads)
+        x, _ = self.attention(x, x, x)
+        x = self.fc1(x)
+        return self.softmax(x)
+
+class AttentionCritic(nn.Module):
+    def __init__(self, n_features, num_heads=4):
+        super(AttentionCritic, self).__init__()
+        self.n_features = n_features
+        self.num_heads = num_heads
+        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
+        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, 1)
+
+    def forward(self, x):
+        x = pad_features(x, self.num_heads)
+        x, _ = self.attention(x, x, x)
+        x = self.fc1(x)
+        return x
 class PiApproximationWithNN(torch.nn.Module):
     def __init__(self, state_dims, num_actions, alpha, nn_type='shallow'):
         """
@@ -21,7 +57,7 @@ class PiApproximationWithNN(torch.nn.Module):
         """
         super(PiApproximationWithNN, self).__init__()
 
-        assert nn_type in ['shallow', 'deep']
+        assert nn_type in ['shallow', 'deep', 'attention']
         self.state_dims = state_dims
         self.num_actions = num_actions
 
@@ -36,7 +72,7 @@ class PiApproximationWithNN(torch.nn.Module):
                 torch.nn.Linear(128, self.num_actions),
                 torch.nn.Softmax()
             )
-        else:
+        elif nn_type == 'deep':
             self.model = torch.nn.Sequential(
                 torch.nn.Linear(self.state_dims, 512),
                 torch.nn.ReLU(),
@@ -47,6 +83,9 @@ class PiApproximationWithNN(torch.nn.Module):
                 torch.nn.Linear(128, self.num_actions),
                 torch.nn.Softmax()
             )
+        else:
+            self.model = AttentionActor(state_dims, num_actions)
+        
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.alpha, betas=(0.9, 0.999))
 
@@ -88,8 +127,6 @@ class VApproximationWithNN(torch.nn.Module):
         alpha: learning rate
         """
         super(VApproximationWithNN, self).__init__()
-
-        assert nn_type in ['shallow', 'deep']
         
         self.state_dims = state_dims
         self.alpha = alpha
@@ -102,7 +139,7 @@ class VApproximationWithNN(torch.nn.Module):
                 torch.nn.ReLU(),
                 torch.nn.Linear(128, 1),
             )
-        else:
+        elif nn_type == 'deep':
             self.model = torch.nn.Sequential(
                 torch.nn.Linear(self.state_dims, 512),
                 torch.nn.ReLU(),
@@ -112,6 +149,8 @@ class VApproximationWithNN(torch.nn.Module):
                 torch.nn.ReLU(),
                 torch.nn.Linear(128, 1),
             )
+        else:
+            self.model = AttentionCritic(state_dims)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.alpha, betas=(0.9, 0.999))
 
