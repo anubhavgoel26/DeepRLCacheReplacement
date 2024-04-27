@@ -73,7 +73,14 @@ def main():
             critic_learning_rate=args.lr,
             ppo_epochs=args.ppo_epochs
         )
-    
+    elif args.agent == 'Random':
+        agent = RandomAgent(env.n_actions)
+    elif args.agent == 'LRU':
+        agent = LRUAgent(env.n_actions)
+    elif args.agent == 'LFU':
+        agent = LFUAgent(env.n_actions)
+    elif args.agent == 'MRU':
+        agent = MRUAgent(env.n_actions)
     
     # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
     #     learning_rate=0.01,
@@ -97,11 +104,7 @@ def main():
     #     verbose=0
     # )
     
-    # 
-    # agents['Random'] = RandomAgent(env.n_actions)
-    # agents['LRU'] = LRUAgent(env.n_actions)
-    # agents['LFU'] = LFUAgent(env.n_actions)
-    # agents['MRU'] = MRUAgent(env.n_actions)
+    
 
     step = 0
     episodes = 100 if isinstance(agent, LearnerAgent) else 1
