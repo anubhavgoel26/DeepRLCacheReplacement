@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 from agents.CacheAgent import LearnerAgent
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class ShallowActor(nn.Module):
     def __init__(self, n_features, n_actions):
         super(ShallowActor, self).__init__()
@@ -97,20 +99,20 @@ class AttentionCritic(nn.Module):
 
 def normalize_features(features):
     return (features - np.mean(features)) / (np.std(features) + 1e-8)
-    
+
 class ActorCriticAgent(LearnerAgent):
     def __init__(self, n_actions, n_features, architecture='deep', actor_learning_rate=0.001, critic_learning_rate=0.01, reward_decay=0.9, replace_target_iter=300, memory_size=500, batch_size=32, output_graph=False, verbose=0):
         self.n_actions = n_actions
         self.n_features = n_features
         if architecture == 'shallow':
-            self.actor = ShallowActor(n_features, n_actions)
-            self.critic = ShallowCritic(n_features)
+            self.actor = ShallowActor(n_features, n_actions).to(device)
+            self.critic = ShallowCritic(n_features).to(device)
         elif architecture == 'deep':
-            self.actor = DeepActor(n_features, n_actions)
-            self.critic = DeepCritic(n_features)
+            self.actor = DeepActor(n_features, n_actions).to(device)
+            self.critic = DeepCritic(n_features).to(device)
         elif architecture == 'attention':
-            self.actor = AttentionActor(n_features, n_actions)
-            self.critic = AttentionCritic(n_features)
+            self.actor = AttentionActor(n_features, n_actions).to(device)
+            self.critic = AttentionCritic(n_features).to(device)
         else:
             raise ValueError("Invalid architecture type")
         self.gamma = reward_decay
@@ -121,7 +123,7 @@ class ActorCriticAgent(LearnerAgent):
         self.batch_size = batch_size
         self.verbose = verbose
         self.learn_step_counter = 0
-        self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
+        self.memory = np.zeros((self.memory_size, n_features * 2 + 2))  # This is not transferred to CUDA as it's maintained on CPU
         self.memory_counter = 0
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.critic_lr)
@@ -137,27 +139,27 @@ class ActorCriticAgent(LearnerAgent):
 
     def choose_action(self, observation):
         features = normalize_features(np.array(observation['features']))
-        features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0)
+        features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0).to(device)
 
         self.actor.eval()
         with torch.no_grad():
             probabilities = self.actor(features_tensor)
         self.actor.train()
 
-        action_probs = probabilities.detach().numpy().squeeze()
+        action_probs = probabilities.cpu().detach().numpy().squeeze()
         action = np.random.choice(range(self.n_actions), p=action_probs)
         return action
-
 
     def learn(self):
         if self.memory_counter < self.batch_size:
             return
         sample_index = np.random.choice(min(self.memory_counter, self.memory_size), size=self.batch_size, replace=False)
         batch_memory = self.memory[sample_index, :]
-        batch_state = torch.tensor(batch_memory[:, :self.n_features], dtype=torch.float)
-        batch_action = torch.tensor(batch_memory[:, self.n_features], dtype=torch.long)
-        batch_reward = torch.tensor(batch_memory[:, self.n_features + 1], dtype=torch.float)
-        batch_next_state = torch.tensor(batch_memory[:, -self.n_features:], dtype=torch.float)
+        batch_state = torch.tensor(batch_memory[:, :self.n_features], dtype=torch.float).to(device)
+        batch_action = torch.tensor(batch_memory[:, self.n_features], dtype=torch.long).to(device)
+        batch_reward = torch.tensor(batch_memory[:, self.n_features + 1], dtype=torch.float).to(device)
+        batch_next_state = torch.tensor(batch_memory[:, -self.n_features:], dtype=torch.float).to(device)
+
         q_values = self.critic(batch_state).squeeze()
         q_values_next = self.critic(batch_next_state).detach().squeeze()
         q_target = batch_reward + self.gamma * q_values_next
@@ -166,6 +168,7 @@ class ActorCriticAgent(LearnerAgent):
         critic_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 1)
         self.critic_optimizer.step()
+
         log_probs = torch.log(self.actor(batch_state).gather(1, batch_action.unsqueeze(1)).squeeze())
         advantage = (q_target - q_values).detach()  # Detach to stop gradients
         actor_loss = -(log_probs * advantage).mean()
@@ -173,6 +176,7 @@ class ActorCriticAgent(LearnerAgent):
         actor_loss.backward()
         torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1)
         self.actor_optimizer.step()
+
         if self.verbose:
             print(f'Step: {self.learn_step_counter}, Critic Loss: {critic_loss.item()}, Actor Loss: {actor_loss.item()}')
         self.learn_step_counter += 1
