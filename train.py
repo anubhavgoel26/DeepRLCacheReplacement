@@ -17,6 +17,7 @@ def main():
     parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 10, 50, 100])
     parser.add_argument('-d', '--data', default="zipf_10k.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
     parser.add_argument('-n', '--network', default='shallow', choices=['deep', 'shallow', 'attention'], type=str)
+    parser.add_argument('-a', '--agent', default='DQN', choices=['SarsaLambda', 'DQN', 'ActorCritic', 'ActorCriticQ', 'PPO', 'REINFORCE', 'LRU', 'LFU', 'MRU', 'Random'], type=str)
     
     # common args for all NN models
     parser.add_argument('--lr', default=1e-3, type=float)
@@ -35,14 +36,34 @@ def main():
         reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3), 
         allow_skip=False, normalize=True
     )
-
-    agents = {}
-    # agents['SarsaLambda'] = SarsaLambdaAgent(
-    #     env.n_actions, env.n_features,
-    #     num_tilings = args.num_tilings,
-    #     tile_width = args.tile_width,
-    #     lam = args.lam
-    # )
+    
+    if args.agent == 'SarsaLambda':
+        agent = SarsaLambdaAgent(
+            env.n_actions, env.n_features,
+            num_tilings = args.num_tilings,
+            tile_width = args.tile_width,
+            lam = args.lam
+        )
+    elif args.agent == 'REINFORCE':
+        agent = REINFORCEAgent(env.n_actions, env.n_features, nn_type = args.network, learning_rate = args.lr)
+    elif args.agent == 'ActorCritic':
+        agent = ActorCriticAgent(env.n_actions, env.n_features,
+            actor_learning_rate=args.lr,
+            critic_learning_rate=args.lr,
+            reward_decay=0.95,
+            batch_size=128,
+            architecture=args.network
+        )
+    elif args.agent == 'ActorCriticQ':
+        agent = ActorCriticQAgent(env.n_actions, env.n_features,
+            actor_learning_rate=args.lr,
+            critic_learning_rate=args.lr,
+            reward_decay=0.95,
+            batch_size=128,
+            architecture=args.network
+        )
+    
+    
     # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
     #     learning_rate=0.01,
     #     reward_decay=0.9,        
@@ -64,64 +85,55 @@ def main():
     #     output_graph=False,
     #     verbose=0
     # )
-    # agents['ActorCriticQ'] = ActorCriticQAgent(env.n_actions, env.n_features,
-    #     actor_learning_rate=0.0001,
-    #     critic_learning_rate=0.001,
-    #     reward_decay=0.99,
-    #     batch_size=128
-    # )
     # agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
     #     actor_learning_rate=0.0001,
     #     critic_learning_rate=0.0001,
     # )
-    agents['REINFORCE'] = REINFORCEAgent(env.n_actions, env.n_features, nn_type = args.network)
+    # 
     # agents['Random'] = RandomAgent(env.n_actions)
     # agents['LRU'] = LRUAgent(env.n_actions)
     # agents['LFU'] = LFUAgent(env.n_actions)
     # agents['MRU'] = MRUAgent(env.n_actions)
 
-    for (name, agent) in agents.items():
-        print("-------------------- %s --------------------" % name)
+    step = 0
+    episodes = 100 if isinstance(agent, LearnerAgent) else 1
+    
+    start_time_step = time.time()
+    start_time_episode = time.time()
 
-        step = 0
-        episodes = 100 if isinstance(agent, LearnerAgent) else 1
-        
-        start_time_step = time.time()
-        start_time_episode = time.time()
+    for episode in range(episodes):
+        observation = env.reset()
 
-        for episode in range(episodes):
-            observation = env.reset()
+        while True:
+            if args.agent=='PPO':
+                action, old_log_prob = agent.choose_action(observation)
+            else:
+                action = agent.choose_action(observation)
 
-            while True:
-                if name=='PPO':
-                    action, old_log_prob = agent.choose_action(observation)
-                else:
-                    action = agent.choose_action(observation)
+            observation_, reward = env.step(action)
 
-                observation_, reward = env.step(action)
+            if env.hasDone():
+                break
 
-                if env.hasDone():
-                    break
+            if args.agent=='PPO':
+                agent.store_transition(observation, action, reward, observation_, old_log_prob)
+            else:
+                agent.store_transition(observation, action, reward, observation_)
 
-                if name=='PPO':
-                    agent.store_transition(observation, action, reward, observation_, old_log_prob)
-                else:
-                    agent.store_transition(observation, action, reward, observation_)
+            if isinstance(agent, LearnerAgent) and (step > 20) and (step % 5 == 0):
+                agent.learn()
 
-                if isinstance(agent, LearnerAgent) and (step > 20) and (step % 5 == 0):
-                    agent.learn()
+            observation = observation_
 
-                observation = observation_
+            if step % 10 == 0:
+                mr = env.miss_rate()
+                print(f"### Time={time.time() - start_time_step} Agent={args.agent}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+                start_time_step = time.time()
 
-                if step % 1000 == 0:
-                    mr = env.miss_rate()
-                    print(f"### Time={time.time() - start_time_step} Agent={name}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
-                    start_time_step = time.time()
-
-                step += 1
-        mr = env.miss_rate()
-        print(f"=== Time={time.time() - start_time_episode} Agent={name}, CacheSize={args.cachesize} Episode={episode}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
-        start_time_episode = time.time()
+            step += 1
+    mr = env.miss_rate()
+    print(f"=== Time={time.time() - start_time_episode} Agent={args.agent}, CacheSize={args.cachesize} Episode={episode}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+    start_time_episode = time.time()
 
 if __name__ == "__main__":
     main()
