@@ -12,11 +12,8 @@ import numpy as np
 import torch
 import numpy as np
 
-def normalize_features(features):
-    return (features - np.mean(features)) / (np.std(features) + 1e-8)
-
 class PiApproximationWithNN(torch.nn.Module):
-    def __init__(self, state_dims, num_actions, alpha, num_neurons=256):
+    def __init__(self, state_dims, num_actions, alpha, nn_type='shallow'):
         """
         state_dims: the number of dimensions of state space
         action_dims: the number of possible actions
@@ -24,21 +21,31 @@ class PiApproximationWithNN(torch.nn.Module):
         """
         super(PiApproximationWithNN, self).__init__()
 
+        assert nn_type in ['shallow', 'deep']
         self.state_dims = state_dims
-        self.num_neurons = num_neurons
         self.num_actions = num_actions
-        self.bias = True
 
         self.alpha = alpha
         
-        self.model = torch.nn.Sequential(
-            torch.nn.Linear(self.state_dims, self.num_neurons, bias=self.bias),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.num_neurons, self.num_neurons, bias=self.bias),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.num_neurons, self.num_actions, bias=self.bias),
-            torch.nn.Softmax()
-        )
+        if nn_type == 'shallow':
+            self.model = torch.nn.Sequential(
+                torch.nn.Linear(self.state_dims, 128),
+                torch.nn.ReLU(),
+                torch.nn.Linear(128, self.num_actions),
+                torch.nn.Softmax()
+            )
+        else:
+            self.model = torch.nn.Sequential(
+                torch.nn.Linear(self.state_dims, 512),
+                torch.nn.ReLU(),
+                torch.nn.Linear(512, 256),
+                torch.nn.ReLU(),
+                torch.nn.Linear(256, 128),
+                torch.nn.ReLU(),
+                torch.nn.Linear(128, self.num_actions),
+                torch.nn.Softmax()
+            )
+
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.alpha, betas=(0.9, 0.999))
 
     def forward(self, states, return_prob=False):
@@ -73,26 +80,36 @@ class PiApproximationWithNN(torch.nn.Module):
         self.optimizer.step()
 
 class VApproximationWithNN(torch.nn.Module):
-    def __init__(self, state_dims, alpha, num_neurons = 256):
+    def __init__(self, state_dims, alpha, nn_type = 'shallow'):
         """
         state_dims: the number of dimensions of state space
         alpha: learning rate
         """
         super(VApproximationWithNN, self).__init__()
+
+        assert nn_type in ['shallow', 'deep']
         
         self.state_dims = state_dims
-        self.num_neurons = num_neurons
-        self.bias = True
         self.alpha = alpha
         self.loss_fn = torch.nn.MSELoss()
-        
-        self.model = torch.nn.Sequential(
-            torch.nn.Linear(self.state_dims, self.num_neurons, bias=self.bias),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.num_neurons, self.num_neurons, bias=self.bias),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.num_neurons, 1, bias=self.bias)
-        )
+
+        if nn_type == 'shallow':
+            self.model = torch.nn.Sequential(
+                torch.nn.Linear(self.state_dims, 128),
+                torch.nn.ReLU(),
+                torch.nn.Linear(128, 1),
+            )
+        else:
+            self.model = torch.nn.Sequential(
+                torch.nn.Linear(self.state_dims, 512),
+                torch.nn.ReLU(),
+                torch.nn.Linear(512, 256),
+                torch.nn.ReLU(),
+                torch.nn.Linear(256, 128),
+                torch.nn.ReLU(),
+                torch.nn.Linear(128, 1),
+            )
+
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.alpha, betas=(0.9, 0.999))
 
     def forward(self, states) -> float:
@@ -132,15 +149,16 @@ class REINFORCEAgent(LearnerAgent):
         e_greedy_init=None,
         e_greedy_increment=None,
         e_greedy_decrement=None,
-        reward_threshold=None
+        reward_threshold=None,
+        nn_type='shallow'
     ):
         self.n_actions = n_actions
         self.n_features = n_features
         self.lr = learning_rate
         self.gamma = reward_decay
 
-        self.pi = PiApproximationWithNN(self.n_features, self.n_actions, self.lr)
-        self.V = VApproximationWithNN(self.n_features, self.lr)
+        self.pi = PiApproximationWithNN(self.n_features, self.n_actions, self.lr, nn_type=nn_type)
+        self.V = VApproximationWithNN(self.n_features, self.lr, nn_type=nn_type)
 
         self.state_idx = 0
         self.action_idx = 0
@@ -151,7 +169,7 @@ class REINFORCEAgent(LearnerAgent):
         self.rewards = dict()
 
     def choose_action(self, observation):
-        self.states[self.state_idx] = normalize_features(observation['features'])
+        self.states[self.state_idx] = observation['features']
         ac = self.pi.forward(self.states[self.state_idx], return_prob=False)
         self.actions[self.action_idx] = ac
 
@@ -161,7 +179,7 @@ class REINFORCEAgent(LearnerAgent):
         return ac
     
     def store_transition(self, observation, action, reward, observation_):
-        self.states[self.state_idx] = normalize_features(observation_['features'])
+        self.states[self.state_idx] = observation_['features']
         self.rewards[self.reward_idx] = reward
         self.reward_idx += 1
     

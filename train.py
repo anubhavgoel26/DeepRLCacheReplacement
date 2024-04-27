@@ -14,9 +14,10 @@ from cache.DataLoader import DataLoaderPintos
 
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
-    parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 25, 50, 100, 300])
+    parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 10, 25, 50, 100, 300])
     parser.add_argument('-d', '--data', default="zipf_10k.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
-
+    parser.add_argument('-n', '--network', default='shallow', choices=['deep', 'shallow', 'attention'], type=str)
+    
     # arguments for SARSA LAMBDA
     parser.add_argument('--num_tilings', default=10, type=int)
     parser.add_argument('--lam', default=0.8, type=float)
@@ -29,7 +30,7 @@ def main():
     env = Cache(dataloader, args.cachesize, 
         feature_selection=('Base', 'UT', 'CT'), 
         reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3), 
-        allow_skip=False
+        allow_skip=False, normalize=True
     )
 
     agents = {}
@@ -60,21 +61,21 @@ def main():
     #     output_graph=False,
     #     verbose=0
     # )
-    agents['ActorCriticQ'] = ActorCriticQAgent(env.n_actions, env.n_features,
-        actor_learning_rate=0.0001,
-        critic_learning_rate=0.001,
-        reward_decay=0.99,
-        batch_size=128
-    )
+    # agents['ActorCriticQ'] = ActorCriticQAgent(env.n_actions, env.n_features,
+    #     actor_learning_rate=0.0001,
+    #     critic_learning_rate=0.001,
+    #     reward_decay=0.99,
+    #     batch_size=128
+    # )
     # agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
     #     actor_learning_rate=0.0001,
     #     critic_learning_rate=0.0001,
     # )
-    agents['REINFORCE'] = REINFORCEAgent(env.n_actions, env.n_features)
-    agents['Random'] = RandomAgent(env.n_actions)
-    agents['LRU'] = LRUAgent(env.n_actions)
-    agents['LFU'] = LFUAgent(env.n_actions)
-    agents['MRU'] = MRUAgent(env.n_actions)
+    agents['REINFORCE'] = REINFORCEAgent(env.n_actions, env.n_features, nn_type = args.network)
+    # agents['Random'] = RandomAgent(env.n_actions)
+    # agents['LRU'] = LRUAgent(env.n_actions)
+    # agents['LFU'] = LFUAgent(env.n_actions)
+    # agents['MRU'] = MRUAgent(env.n_actions)
 
     for (name, agent) in agents.items():
         print("-------------------- %s --------------------" % name)
