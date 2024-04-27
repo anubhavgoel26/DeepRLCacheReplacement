@@ -81,33 +81,31 @@ def main():
         agent = LFUAgent(env.n_actions)
     elif args.agent == 'MRU':
         agent = MRUAgent(env.n_actions)
+    elif args.agent == 'DQN':
+        agent = DQNAgent(env.n_actions, env.n_features,
+            learning_rate=args.lr,
+            reward_decay=0.9,        
+            e_greedy_min=(0.0, 0.1),
+            e_greedy_max=(0.2, 0.8),
+            e_greedy_init=(0.1, 0.5),
+            e_greedy_increment=(0.005, 0.01),
+            e_greedy_decrement=(0.005, 0.001),
+
+            history_size=50,
+            dynamic_e_greedy_iter=25,
+            reward_threshold=3,
+            explore_mentor = 'LRU',
+
+            replace_target_iter=100,
+            memory_size=10000,
+            batch_size=128,
+
+            output_graph=False,
+            verbose=0
+        )
     
-    # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
-    #     learning_rate=0.01,
-    #     reward_decay=0.9,        
-    #     e_greedy_min=(0.0, 0.1),
-    #     e_greedy_max=(0.2, 0.8),
-    #     e_greedy_init=(0.1, 0.5),
-    #     e_greedy_increment=(0.005, 0.01),
-    #     e_greedy_decrement=(0.005, 0.001),
-
-    #     history_size=50,
-    #     dynamic_e_greedy_iter=25,
-    #     reward_threshold=3,
-    #     explore_mentor = 'LRU',
-
-    #     replace_target_iter=100,
-    #     memory_size=10000,
-    #     batch_size=128,
-
-    #     output_graph=False,
-    #     verbose=0
-    # )
-    
-    
-
     step = 0
-    episodes = 100 if isinstance(agent, LearnerAgent) else 1
+    episodes = 10 if isinstance(agent, LearnerAgent) else 1
     
     start_time_step = time.time()
     start_time_episode = time.time()
