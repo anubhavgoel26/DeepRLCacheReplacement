@@ -8,41 +8,39 @@ class ShallowActor(nn.Module):
     def __init__(self, n_features, n_actions):
         super(ShallowActor, self).__init__()
         self.fc1 = nn.Linear(n_features, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, n_actions)
+        self.fc2 = nn.Linear(128, n_actions)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.softmax(self.fc3(x))
+        x = self.softmax(self.fc2(x))
         return x
 
 class ShallowCritic(nn.Module):
     def __init__(self, n_features, n_actions):
         super(ShallowCritic, self).__init__()
         self.fc1 = nn.Linear(n_features + n_actions, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 1)
+        self.fc2 = nn.Linear(128, 1)
 
     def forward(self, x, a):
         xa = torch.cat([x, a], dim=-1)
         xa = torch.relu(self.fc1(xa))
-        xa = torch.relu(self.fc2(xa))
-        return self.fc3(xa)
+        return self.fc2(xa)
 
 class DeepActor(nn.Module):
     def __init__(self, n_features, n_actions):
         super(DeepActor, self).__init__()
         self.fc1 = nn.Linear(n_features, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, n_actions)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, n_actions)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        x = self.softmax(self.fc3(x))
+        x = torch.relu(self.fc3(x))
+        x = self.softmax(self.fc4(x))
         return x
 
 class DeepCritic(nn.Module):
@@ -50,13 +48,15 @@ class DeepCritic(nn.Module):
         super(DeepCritic, self).__init__()
         self.fc1 = nn.Linear(n_features + n_actions, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 1)
+        self.fc3 = nn.Linear(512, 128)
+        self.fc4 = nn.Linear(128, 1)
 
     def forward(self, x, a):
         xa = torch.cat([x, a], dim=-1)
         xa = torch.relu(self.fc1(xa))
         xa = torch.relu(self.fc2(xa))
-        return self.fc3(xa)
+        xa = torch.relu(self.fc3(xa))
+        return self.fc4(xa)
 
 def pad_features(x, num_heads):
     n_features = x.size(-1)

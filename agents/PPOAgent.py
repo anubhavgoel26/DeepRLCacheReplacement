@@ -9,27 +9,23 @@ class ShallowActor(nn.Module):
     def __init__(self, n_features, n_actions):
         super(ShallowActor, self).__init__()
         self.fc1 = nn.Linear(n_features, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, n_actions)
+        self.fc2 = nn.Linear(128, n_actions)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.softmax(self.fc3(x))
+        x = self.softmax(self.fc2(x))
         return x
 
 class ShallowCritic(nn.Module):
     def __init__(self, n_features):
         super(ShallowCritic, self).__init__()
         self.fc1 = nn.Linear(n_features, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 1)
+        self.fc2 = nn.Linear(128, 1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.fc2(x)
         return x
 
 class DeepActor(nn.Module):
@@ -37,13 +33,15 @@ class DeepActor(nn.Module):
         super(DeepActor, self).__init__()
         self.fc1 = nn.Linear(n_features, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, n_actions)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, n_actions)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        x = self.softmax(self.fc3(x))
+        x = torch.relu(self.fc3(x))
+        x = self.softmax(self.fc4(x))
         return x
 
 class DeepCritic(nn.Module):
@@ -51,12 +49,14 @@ class DeepCritic(nn.Module):
         super(DeepCritic, self).__init__()
         self.fc1 = nn.Linear(n_features, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 1)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, 1)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)
         return x
 
 def pad_features(x, num_heads):
@@ -100,7 +100,7 @@ def normalize_features(features):
     return (features - np.mean(features)) / (np.std(features) + 1e-8)
 
 class PPOAgent(LearnerAgent):
-    def __init__(self, n_actions, n_features, architecture='attention', actor_learning_rate=0.001, critic_learning_rate=0.01, gamma=0.99, clip_param=0.2, ppo_epochs=10, batch_size=32, verbose=0):
+    def __init__(self, n_actions, n_features, architecture='deep', actor_learning_rate=0.001, critic_learning_rate=0.01, gamma=0.99, clip_param=0.2, ppo_epochs=10, batch_size=32, verbose=0):
         self.n_actions = n_actions
         self.n_features = n_features
         self.gamma = gamma

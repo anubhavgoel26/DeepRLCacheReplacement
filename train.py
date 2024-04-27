@@ -15,7 +15,7 @@ from cache.DataLoader import DataLoaderPintos
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
     parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 25, 50, 100, 300])
-    parser.add_argument('-d', '--data', default="zipf.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
+    parser.add_argument('-d', '--data', default="zipf_10k.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
 
     # arguments for SARSA LAMBDA
     parser.add_argument('--num_tilings', default=10, type=int)
@@ -33,12 +33,12 @@ def main():
     )
 
     agents = {}
-    agents['SarsaLambda'] = SarsaLambdaAgent(
-        env.n_actions, env.n_features,
-        num_tilings = args.num_tilings,
-        tile_width = args.tile_width,
-        lam = args.lam
-    )
+    # agents['SarsaLambda'] = SarsaLambdaAgent(
+    #     env.n_actions, env.n_features,
+    #     num_tilings = args.num_tilings,
+    #     tile_width = args.tile_width,
+    #     lam = args.lam
+    # )
     # agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
     #     learning_rate=0.01,
     #     reward_decay=0.9,        
@@ -66,10 +66,10 @@ def main():
         reward_decay=0.99,
         batch_size=128
     )
-    agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
-        actor_learning_rate=0.0001,
-        critic_learning_rate=0.0001,
-    )
+    # agents['PPO'] = PPOAgent(env.n_actions, env.n_features,
+    #     actor_learning_rate=0.0001,
+    #     critic_learning_rate=0.0001,
+    # )
     agents['REINFORCE'] = REINFORCEAgent(env.n_actions, env.n_features)
     agents['Random'] = RandomAgent(env.n_actions)
     agents['LRU'] = LRUAgent(env.n_actions)
