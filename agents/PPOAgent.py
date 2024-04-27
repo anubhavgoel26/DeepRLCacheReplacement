@@ -5,6 +5,8 @@ import torch.optim as optim
 import random
 from agents.CacheAgent import LearnerAgent
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class ShallowActor(nn.Module):
     def __init__(self, n_features, n_actions):
         super(ShallowActor, self).__init__()
@@ -59,43 +61,6 @@ class DeepCritic(nn.Module):
         x = self.fc4(x)
         return x
 
-def pad_features(x, num_heads):
-    n_features = x.size(-1)
-    padding_size = (num_heads - (n_features % num_heads)) % num_heads
-    if padding_size > 0:
-        padding = torch.zeros((x.size(0), padding_size), device=x.device)
-        x = torch.cat([x, padding], dim=-1)
-    return x
-
-class AttentionActor(nn.Module):
-    def __init__(self, n_features, n_actions, num_heads=4):
-        super(AttentionActor, self).__init__()
-        self.n_features = n_features
-        self.num_heads = num_heads
-        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
-        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, n_actions)
-        self.softmax = nn.Softmax(dim=1)
-
-    def forward(self, x):
-        x = pad_features(x, self.num_heads)
-        x, _ = self.attention(x, x, x)
-        x = self.fc1(x)
-        return self.softmax(x)
-
-class AttentionCritic(nn.Module):
-    def __init__(self, n_features, num_heads=4):
-        super(AttentionCritic, self).__init__()
-        self.n_features = n_features
-        self.num_heads = num_heads
-        self.attention = nn.MultiheadAttention(n_features + (num_heads - n_features % num_heads) % num_heads, num_heads, batch_first=True)
-        self.fc1 = nn.Linear(n_features + (num_heads - n_features % num_heads) % num_heads, 1)
-
-    def forward(self, x):
-        x = pad_features(x, self.num_heads)
-        x, _ = self.attention(x, x, x)
-        x = self.fc1(x)
-        return x
-
 def normalize_features(features):
     return (features - np.mean(features)) / (np.std(features) + 1e-8)
 
@@ -111,14 +76,11 @@ class PPOAgent(LearnerAgent):
         self.learn_step_counter = 0
         self.memory = []
         if architecture == 'shallow':
-            self.actor = ShallowActor(n_features, n_actions)
-            self.critic = ShallowCritic(n_features)
+            self.actor = ShallowActor(n_features, n_actions).to(device)
+            self.critic = ShallowCritic(n_features).to(device)
         elif architecture == 'deep':
-            self.actor = DeepActor(n_features, n_actions)
-            self.critic = DeepCritic(n_features)
-        elif architecture == 'attention':
-            self.actor = AttentionActor(n_features, n_actions)
-            self.critic = AttentionCritic(n_features)
+            self.actor = DeepActor(n_features, n_actions).to(device)
+            self.critic = DeepCritic(n_features).to(device)
         else:
             raise ValueError("Invalid architecture type")
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_learning_rate)
@@ -132,7 +94,7 @@ class PPOAgent(LearnerAgent):
 
     def choose_action(self, observation, return_log_prob=True):
         features = normalize_features(np.array(observation['features']))
-        features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0)
+        features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0).to(device)
         probabilities = self.actor(features_tensor)
         dist = torch.distributions.Categorical(probabilities)
         action = dist.sample()
@@ -147,12 +109,11 @@ class PPOAgent(LearnerAgent):
         self.memory = []
 
         states, actions, rewards, next_states, old_log_probs = zip(*sample)
-        states = torch.tensor(np.vstack(states), dtype=torch.float)
-        actions = torch.tensor(np.array(actions), dtype=torch.long)
-        rewards = torch.tensor(np.array(rewards), dtype=torch.float)
-        next_states = torch.tensor(np.vstack(next_states), dtype=torch.float)
-        old_log_probs = torch.tensor(np.array(old_log_probs), dtype=torch.float)
-
+        states = torch.tensor(np.vstack(states), dtype=torch.float).to(device)
+        actions = torch.tensor(np.array(actions), dtype=torch.long).to(device)
+        rewards = torch.tensor(np.array(rewards), dtype=torch.float).to(device)
+        next_states = torch.tensor(np.vstack(next_states), dtype=torch.float).to(device)
+        old_log_probs = torch.tensor(np.array(old_log_probs), dtype=torch.float).to(device)
 
         for _ in range(self.ppo_epochs):
             state_values = self.critic(states).squeeze()
@@ -161,7 +122,7 @@ class PPOAgent(LearnerAgent):
             new_log_probs = dist.log_prob(actions)
             
             ratios = torch.exp(new_log_probs - old_log_probs)
-            advantages = (rewards + self.gamma * self.critic(next_states).detach().squeeze() - state_values).detach()  # Detach old value calculations
+            advantages = (rewards + self.gamma * self.critic(next_states).detach().squeeze() - state_values).detach()
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1 - self.clip_param, 1 + self.clip_param) * advantages
             actor_loss = -torch.min(surr1, surr2).mean()
@@ -176,19 +137,10 @@ class PPOAgent(LearnerAgent):
                 critic_loss.backward()
                 self.critic_optimizer.step()
 
-
             if self.verbose:
                 print(f'PPO Step: {self.learn_step_counter}, Actor Loss: {actor_loss.item()}, Critic Loss: {critic_loss.item()}')
 
         self.learn_step_counter += 1
-
-    def evaluate_actions(self, states, actions):
-        probs = self.actor(states)
-        dist = torch.distributions.Categorical(probs)
-        log_probs = dist.log_prob(actions)
-        entropy = dist.entropy()
-        state_values = self.critic(states)
-        return log_probs, state_values, entropy
 
     def plot_cost(self):
         pass
