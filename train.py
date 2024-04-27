@@ -14,10 +14,13 @@ from cache.DataLoader import DataLoaderPintos
 
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
-    parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 10, 25, 50, 100, 300])
+    parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 10, 50, 100])
     parser.add_argument('-d', '--data', default="zipf_10k.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
     parser.add_argument('-n', '--network', default='shallow', choices=['deep', 'shallow', 'attention'], type=str)
     
+    # common args for all NN models
+    parser.add_argument('--lr', default=1e-3, type=float)
+
     # arguments for SARSA LAMBDA
     parser.add_argument('--num_tilings', default=10, type=int)
     parser.add_argument('--lam', default=0.8, type=float)
@@ -110,7 +113,7 @@ def main():
 
                 observation = observation_
 
-                if step % 5 == 0:
+                if step % 1000 == 0:
                     mr = env.miss_rate()
                     print(f"### Time={time.time() - start_time_step} Agent={name}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
                     start_time_step = time.time()

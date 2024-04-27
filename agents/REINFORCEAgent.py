@@ -26,6 +26,8 @@ class PiApproximationWithNN(torch.nn.Module):
         self.num_actions = num_actions
 
         self.alpha = alpha
+
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
         
         if nn_type == 'shallow':
             self.model = torch.nn.Sequential(
@@ -73,14 +75,14 @@ class PiApproximationWithNN(torch.nn.Module):
         self.model.train()
         self.optimizer.zero_grad()
 
-        output = self.forward(states, return_prob=True)
-        logprob = torch.distributions.Categorical(output).log_prob(torch.tensor(actions_taken))
+        output = self.forward(torch.from_numpy(states).float().to(self.device), return_prob=True)
+        logprob = torch.distributions.Categorical(output).log_prob(torch.tensor(actions_taken).to(self.device))
         loss = -1 * logprob * gamma_t * delta
         loss.backward()
         self.optimizer.step()
 
 class VApproximationWithNN(torch.nn.Module):
-    def __init__(self, state_dims, alpha, nn_type = 'shallow'):
+    def __init__(self, state_dims, alpha, nn_type = 'shallow',):
         """
         state_dims: the number of dimensions of state space
         alpha: learning rate
@@ -92,6 +94,7 @@ class VApproximationWithNN(torch.nn.Module):
         self.state_dims = state_dims
         self.alpha = alpha
         self.loss_fn = torch.nn.MSELoss()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         if nn_type == 'shallow':
             self.model = torch.nn.Sequential(
@@ -129,8 +132,8 @@ class VApproximationWithNN(torch.nn.Module):
         if isinstance(states, np.ndarray):
             states = torch.from_numpy(states).float()
         
-        predicted_val = self.model.forward(states)
-        loss = self.loss_fn(predicted_val, torch.tensor([G]))
+        predicted_val = self.model.forward(states.to(self.device))
+        loss = self.loss_fn(predicted_val, torch.tensor([G], device=self.device))
         loss.backward()
 
         self.optimizer.step()
@@ -144,13 +147,8 @@ class REINFORCEAgent(LearnerAgent):
         n_features,
         learning_rate=0.1,
         reward_decay=0.9,
-        e_greedy_min=(0.1, 0.1),
-        e_greedy_max=(0.1, 0.1),
-        e_greedy_init=None,
-        e_greedy_increment=None,
-        e_greedy_decrement=None,
-        reward_threshold=None,
-        nn_type='shallow'
+        nn_type='shallow',
+        cuda=False
     ):
         self.n_actions = n_actions
         self.n_features = n_features
@@ -160,6 +158,11 @@ class REINFORCEAgent(LearnerAgent):
         self.pi = PiApproximationWithNN(self.n_features, self.n_actions, self.lr, nn_type=nn_type)
         self.V = VApproximationWithNN(self.n_features, self.lr, nn_type=nn_type)
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.pi.to(self.device)
+        self.V.to(self.device)
+        
         self.state_idx = 0
         self.action_idx = 0
         self.reward_idx = 0
@@ -170,7 +173,7 @@ class REINFORCEAgent(LearnerAgent):
 
     def choose_action(self, observation):
         self.states[self.state_idx] = observation['features']
-        ac = self.pi.forward(self.states[self.state_idx], return_prob=False)
+        ac = self.pi.forward(torch.from_numpy(self.states[self.state_idx]).to(self.pi.device).float(), return_prob=False)
         self.actions[self.action_idx] = ac
 
         self.state_idx += 1
@@ -189,7 +192,7 @@ class REINFORCEAgent(LearnerAgent):
             for k in range(t+1, self.state_idx):
                 G = G + self.gamma**(k-t-1) * self.rewards[k]
 
-            delta = G - self.V.forward(self.states[t])
+            delta = G - self.V.forward(torch.from_numpy(self.states[t]).float().to(self.device))
 
             self.V.update(self.states[t], G)
             self.pi.update(self.states[t], self.actions[t], self.gamma ** t, delta)

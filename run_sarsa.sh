@@ -9,24 +9,3 @@ for cache_size in 5 10; do
         done
     done
 done
-
-# python3 train.py -c 5 --num_tilings 5 --tile_width 0.5 --lam 0.0 > outputs/sarsa_tile_coding0 2>&1
-# python3 train.py -c 5 --num_tilings 5 --tile_width 0.5 --lam 0.4 > outputs/sarsa_tile_coding1 2>&1
-# python3 train.py -c 5 --num_tilings 5 --tile_width 0.5 --lam 0.8 > outputs/sarsa_tile_coding2 2>&1
-# python3 train.py -c 5 --num_tilings 5 --tile_width 0.5 --lam 1.0 > outputs/sarsa_tile_coding3 2>&1
-
-# python3 train.py -c 5 --num_tilings 5 --tile_width 1.0 --lam 0.0 > outputs/sarsa_tile_coding4 2>&1
-# python3 train.py -c 5 --num_tilings 5 --tile_width 1.0 --lam 0.4 > outputs/sarsa_tile_coding5 2>&1
-# python3 train.py -c 5 --num_tilings 5 --tile_width 1.0 --lam 0.8 > outputs/sarsa_tile_coding6 2>&1
-# python3 train.py -c 5 --num_tilings 5 --tile_width 1.0 --lam 1.0 > outputs/sarsa_tile_coding7 2>&1
-
-# python3 train.py -c 5 --num_tilings 10 --tile_width 0.5 --lam 0.0 > outputs/sarsa_tile_coding8 2>&1
-# python3 train.py -c 5 --num_tilings 10 --tile_width 0.5 --lam 0.4 > outputs/sarsa_tile_coding9 2>&1
-# python3 train.py -c 5 --num_tilings 10 --tile_width 0.5 --lam 0.8 > outputs/sarsa_tile_coding10 2>&1
-# python3 train.py -c 5 --num_tilings 10 --tile_width 0.5 --lam 1.0 > outputs/sarsa_tile_coding11 2>&1
-
-
-# python3 train.py -c 5 --num_tilings 10 --tile_width 1.0 --lam 0.0 > outputs/sarsa_tile_coding12 2>&1
-# python3 train.py -c 5 --num_tilings 10 --tile_width 1.0 --lam 0.4 > outputs/sarsa_tile_coding13 2>&1
-# python3 train.py -c 5 --num_tilings 10 --tile_width 1.0 --lam 0.8 > outputs/sarsa_tile_coding14 2>&1
-# python3 train.py -c 5 --num_tilings 10 --tile_width 1.0 --lam 1.0 > outputs/sarsa_tile_coding15 2>&1
