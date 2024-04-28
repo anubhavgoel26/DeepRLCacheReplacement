@@ -15,6 +15,7 @@ from cache.DataLoader import DataLoaderPintos
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
     parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 10, 50, 100])
+    parser.add_argument('-e', '--early', default=-1, type=int)
     parser.add_argument('-f', '--feature', default='all', type=str, choices=['all', 'Base'])
     parser.add_argument('-d', '--data', default="zipf_10k.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
     parser.add_argument('-n', '--network', default='shallow', choices=['deep', 'shallow', 'attention'], type=str)
@@ -45,7 +46,7 @@ def main():
 
     dataloader = DataLoaderPintos([f"data/{args.data}"])
     env = Cache(dataloader, args.cachesize, 
-        feature_selection=('Base', 'UT', 'CT'), 
+        feature_selection=features, 
         reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3), 
         allow_skip=False, normalize=True
     )
@@ -146,6 +147,10 @@ def main():
                 mr = env.miss_rate()
                 print(f"### Time={time.time() - start_time_step} Agent={args.agent}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
                 start_time_step = time.time()
+            
+            if args.early > 0 and env.total_count > args.early:
+                print(f"### Time={time.time() - start_time_step} Agent={args.agent}, CacheSize={args.cachesize} Episode={episode}, Step={step}: Accesses={env.total_count}, Misses={env.miss_count}, MissRate={mr}")
+                exit()
 
             step += 1
     mr = env.miss_rate()
