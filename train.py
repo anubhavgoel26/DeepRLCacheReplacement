@@ -15,6 +15,7 @@ from cache.DataLoader import DataLoaderPintos
 def main():
     parser = argparse.ArgumentParser(description='Train RL approaches for cache replacement problem')
     parser.add_argument('-c', '--cachesize', default=50, type=int, choices=[5, 10, 50, 100])
+    parser.add_argument('-f', '--feature', default='all', type=str, choices=['all', 'Base'])
     parser.add_argument('-d', '--data', default="zipf_10k.csv", type=str, choices=["zipf.csv", "zipf_10k.csv"])
     parser.add_argument('-n', '--network', default='shallow', choices=['deep', 'shallow', 'attention'], type=str)
     parser.add_argument('-a', '--agent', default='DQN', choices=['SarsaLambda', 'DQN', 'ActorCritic', 'ActorCriticQ', 'PPO', 'REINFORCE', 'LRU', 'LFU', 'MRU', 'Random'], type=str)
@@ -34,6 +35,13 @@ def main():
     
 
     print(args)
+    
+    if args.feature == 'all':
+        features = ('Base', 'UT', 'CT')
+    elif args.feature == 'Base':
+        features = ('Base')
+    else:
+        raise NotImplementedError()
 
     dataloader = DataLoaderPintos([f"data/{args.data}"])
     env = Cache(dataloader, args.cachesize, 
