@@ -126,7 +126,7 @@ class ActorCriticQAgent(LearnerAgent):
         self.learn_step_counter = 0
         self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
         self.memory_counter = 0
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr, betas=(0.9, 0.999), eps=1e-8)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.critic_lr)
         self.loss_func = nn.MSELoss()
 

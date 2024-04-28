@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 from agents.CacheAgent import LearnerAgent
 
+from agents.ReflexAgent import RandomAgent, LRUAgent, LFUAgent
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ShallowActor(nn.Module):
@@ -30,33 +32,45 @@ class ShallowCritic(nn.Module):
         return x
 
 class DeepActor(nn.Module):
-    def __init__(self, n_features, n_actions):
+    def __init__(self, n_features, n_actions, dropout_rate=0.5):
         super(DeepActor, self).__init__()
         self.fc1 = nn.Linear(n_features, 512)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.dropout1 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(512, 256)
+        self.bn2 = nn.BatchNorm1d(256)
+        self.dropout2 = nn.Dropout(dropout_rate)
         self.fc3 = nn.Linear(256, 128)
+        self.bn3 = nn.BatchNorm1d(128)
+        self.dropout3 = nn.Dropout(dropout_rate)
         self.fc4 = nn.Linear(128, n_actions)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.relu(self.fc3(x))
+        x = self.dropout1(torch.relu(self.bn1(self.fc1(x))))
+        x = self.dropout2(torch.relu(self.bn2(self.fc2(x))))
+        x = self.dropout3(torch.relu(self.bn3(self.fc3(x))))
         x = self.softmax(self.fc4(x))
         return x
 
 class DeepCritic(nn.Module):
-    def __init__(self, n_features):
+    def __init__(self, n_features, dropout_rate=0.5):
         super(DeepCritic, self).__init__()
         self.fc1 = nn.Linear(n_features, 512)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.dropout1 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(512, 256)
+        self.bn2 = nn.BatchNorm1d(256)
+        self.dropout2 = nn.Dropout(dropout_rate)
         self.fc3 = nn.Linear(256, 128)
+        self.bn3 = nn.BatchNorm1d(128)
+        self.dropout3 = nn.Dropout(dropout_rate)
         self.fc4 = nn.Linear(128, 1)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.relu(self.fc3(x))
+        x = self.dropout1(torch.relu(self.bn1(self.fc1(x))))
+        x = self.dropout2(torch.relu(self.bn2(self.fc2(x))))
+        x = self.dropout3(torch.relu(self.bn3(self.fc3(x))))
         x = self.fc4(x)
         return x
 
@@ -138,16 +152,19 @@ class ActorCriticAgent(LearnerAgent):
         self.memory_counter += 1
 
     def choose_action(self, observation):
-        features = normalize_features(np.array(observation['features']))
-        features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0).to(device)
+        if np.random.uniform() < 0.2:
+            action = LRUAgent._choose_action(observation)
+        else:
+            features = normalize_features(np.array(observation['features']))
+            features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0).to(device)
 
-        self.actor.eval()
-        with torch.no_grad():
-            probabilities = self.actor(features_tensor)
-        self.actor.train()
+            self.actor.eval()
+            with torch.no_grad():
+                probabilities = self.actor(features_tensor)
+            self.actor.train()
 
-        action_probs = probabilities.cpu().detach().numpy().squeeze()
-        action = np.random.choice(range(self.n_actions), p=action_probs)
+            action_probs = probabilities.cpu().detach().numpy().squeeze()
+            action = np.random.choice(range(self.n_actions), p=action_probs)
         return action
 
     def learn(self):
@@ -166,7 +183,7 @@ class ActorCriticAgent(LearnerAgent):
         critic_loss = self.loss_func(q_values, q_target)
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 1)
+        # torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 1)
         self.critic_optimizer.step()
 
         log_probs = torch.log(self.actor(batch_state).gather(1, batch_action.unsqueeze(1)).squeeze())
@@ -174,7 +191,7 @@ class ActorCriticAgent(LearnerAgent):
         actor_loss = -(log_probs * advantage).mean()
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1)
+        # torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 1)
         self.actor_optimizer.step()
 
         if self.verbose:

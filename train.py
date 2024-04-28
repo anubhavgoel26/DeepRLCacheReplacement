@@ -53,18 +53,18 @@ def main():
         agent = REINFORCEAgent(env.n_actions, env.n_features, nn_type = args.network, learning_rate = args.lr)
     elif args.agent == 'ActorCritic':
         agent = ActorCriticAgent(env.n_actions, env.n_features,
-            actor_learning_rate=args.lr,
-            critic_learning_rate=args.lr,
-            reward_decay=0.95,
-            batch_size=128,
-            architecture=args.network
+            actor_learning_rate=0.0001,
+            critic_learning_rate=0.01,
+            reward_decay=0.99,
+            batch_size=16,
+            architecture='deep'
         )
     elif args.agent == 'ActorCriticQ':
         agent = ActorCriticQAgent(env.n_actions, env.n_features,
             actor_learning_rate=args.lr,
             critic_learning_rate=args.lr,
             reward_decay=0.95,
-            batch_size=128,
+            batch_size=32,
             architecture=args.network
         )
     elif args.agent == 'PPO':

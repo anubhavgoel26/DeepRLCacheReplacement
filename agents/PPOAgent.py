@@ -5,6 +5,8 @@ import torch.optim as optim
 import random
 from agents.CacheAgent import LearnerAgent
 
+from agents.ReflexAgent import RandomAgent, LRUAgent, LFUAgent
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ShallowActor(nn.Module):
@@ -97,9 +99,14 @@ class PPOAgent(LearnerAgent):
         features_tensor = torch.tensor(features, dtype=torch.float).unsqueeze(0).to(device)
         probabilities = self.actor(features_tensor)
         dist = torch.distributions.Categorical(probabilities)
-        action = dist.sample()
-        log_prob = dist.log_prob(action)
-        return (action.item(), log_prob.item()) if return_log_prob else action.item()
+        if np.random.uniform() < 0.2:
+            action = LRUAgent._choose_action(observation)
+            log_prob = dist.log_prob(torch.tensor(action).to(device))
+        else:
+            action = dist.sample()
+            log_prob = dist.log_prob(action)
+            action = action.item()
+        return (action, log_prob.item()) if return_log_prob else action.item()
 
     def learn(self):
         if len(self.memory) < self.batch_size:
