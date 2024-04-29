@@ -228,7 +228,7 @@ class REINFORCEAgent(LearnerAgent):
     def learn(self):
         for t in range(0, self.state_idx):
             G = 0.00
-            for k in range(t+1, self.state_idx):
+            for k in range(t+1, self.reward_idx):
                 G = G + self.gamma**(k-t-1) * self.rewards[k]
 
             delta = G - self.V.forward(torch.from_numpy(self.states[t]).float().to(self.device))
