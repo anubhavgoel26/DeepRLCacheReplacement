@@ -3,11 +3,15 @@
 ## Data Generation
 ```
 mkdir data
-python3 utils/gen_zipf.py
+python3 utils/gen_zipf.py ./data/zipf_10k.csv 10000 50000 1.5 10
 ```
 
 ## Reproducing Results
 To reproduce the results in the report, run one of the scripts ending in `run_<agent>.sh` which correspond to different agents. For more specific results, run `python3 train.py` with the right command line arguments. Every option has a default argument for an easier start.
+
+## Our logs and plots
+The file `outputs.zip` contains all the train logs from running the `run_<agent>.sh` commands. Unzip this folder to a convenient location and open the `parse_logs.ipynb` jupyter notebook. In this notebook, set `OUTPUT_DIR = "/path/to/where/you/unzipped"` and then set the `Model` variable on Line 9 of the notebook to one of `['Baselines', 'SarsaLambda', 'ActorCritic', 'ActorCriticQ', 'PPO_shallow', 'PPO_deep', 'DQN', 'REINFORCE (shallow)', 'REINFORCE (deep)', 'REINFORCE (attention)', 'FINAL']` to re-create plots from the paper.
+
 
 ## References
 
