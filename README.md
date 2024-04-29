@@ -1,5 +1,13 @@
 # Deep Reinforcement Learning for Cache Replacement Policy
 
+## Requirements
+```
+torch
+numpy
+pandas
+matplotlib
+```
+
 ## Data Generation
 ```
 mkdir data
